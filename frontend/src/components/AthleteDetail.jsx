@@ -12,11 +12,14 @@ import {
   PlusCircle,
   Clock,
   Phone,
-  CheckCircle2
+  CheckCircle2,
+  Sparkles,
+  Info
 } from 'lucide-react';
 import { ReadinessBadge, RiskBadge } from './Badges';
 import { BiometricTrendChart } from './BiometricTrendChart';
 import { api } from '../services/api';
+import { generateSportsScienceInsights } from '../services/aiIntelligence';
 
 export function AthleteDetail({ athlete, onClose, onRefresh }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'log_biometrics' | 'log_injury'
@@ -185,6 +188,41 @@ export function AthleteDetail({ athlete, onClose, onRefresh }) {
               <div className="stat-note">Weight: 20% of Readiness</div>
             </div>
           </div>
+
+          {/* AI Intelligence & Sports Science Insights */}
+          {(() => {
+            const aiData = generateSportsScienceInsights(athlete, athlete.biometric_logs || []);
+            return (
+              <div className="section-card ai-insights-card">
+                <div className="section-card-header">
+                  <div className="ai-title-group">
+                    <Sparkles size={16} className="text-cyan" />
+                    <h4>AI Sports Science Analysis & Prescription</h4>
+                  </div>
+                  <span className="ai-engine-tag">Autonomous Vagal & Workload Model</span>
+                </div>
+
+                <div className="ai-prescription-box">
+                  <span className="prescription-badge">Today's Load Guidance</span>
+                  <p className="prescription-text">{aiData.trainingPrescription}</p>
+                </div>
+
+                {aiData.insights.length > 0 && (
+                  <div className="ai-insights-list">
+                    {aiData.insights.map((item, idx) => (
+                      <div key={idx} className={`ai-insight-item insight-${item.type}`}>
+                        <div className="insight-header">
+                          <span className="insight-tag">{item.tag}</span>
+                          <span className="insight-title">{item.title}</span>
+                        </div>
+                        <p className="insight-msg">{item.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Biometric Trend Chart */}
           <BiometricTrendChart logs={athlete.biometric_logs || []} />
