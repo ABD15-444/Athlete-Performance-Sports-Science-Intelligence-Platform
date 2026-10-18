@@ -46,6 +46,11 @@ export const api = {
       body: JSON.stringify(athleteData),
     }),
 
+  deleteAthlete: (id) =>
+    fetchJson(`/api/athletes/${id}`, {
+      method: 'DELETE',
+    }),
+
   // Biometrics
   logBiometrics: (athleteId, biometricData) =>
     fetchJson(`/api/athletes/${athleteId}/biometrics`, {

@@ -82,12 +82,24 @@ router.get('/athletes/:athleteId/injuries', async (req, res) => {
 // ---------------------------------------------------------------------------
 router.post('/athletes/:id/injury', async (req, res) => {
   const athleteId = req.params.id;
-  const { injury_date, injury_type, severity, body_part, expected_return } = req.body;
+  const {
+    injury_date,
+    injury_type,
+    severity,
+    body_part,
+    expected_return,
+    expected_recovery_days,
+    recovery_status,
+    status
+  } = req.body;
+
+  // Use provided injury_date or default to CURRENT_DATE (YYYY-MM-DD)
+  const resolvedDate = injury_date || new Date().toISOString().split('T')[0];
 
   // Validate required fields
-  if (!injury_date || !injury_type || !severity) {
+  if (!injury_type || !severity) {
     return res.status(400).json({
-      error: 'Missing required fields: injury_date, injury_type, severity.',
+      error: 'Missing required fields: injury_type, severity.',
     });
   }
 
@@ -97,6 +109,23 @@ router.post('/athletes/:id/injury', async (req, res) => {
     return res.status(400).json({
       error: `severity must be one of: ${validSeverities.join(', ')}.`,
     });
+  }
+
+  // Determine recovery status ('Active' by default, or 'Cleared' / 'Recovering' if logged as past)
+  const resolvedStatus = recovery_status || status || 'Active';
+  const validStatuses = ['Active', 'Recovering', 'Cleared'];
+  if (!validStatuses.includes(resolvedStatus)) {
+    return res.status(400).json({
+      error: `recovery_status must be one of: ${validStatuses.join(', ')}.`,
+    });
+  }
+
+  // Calculate expected_return date if recovery days provided
+  let resolvedReturn = expected_return || null;
+  if (!resolvedReturn && expected_recovery_days) {
+    const d = new Date(resolvedDate);
+    d.setDate(d.getDate() + parseInt(expected_recovery_days, 10));
+    resolvedReturn = d.toISOString().split('T')[0];
   }
 
   try {
@@ -112,25 +141,28 @@ router.post('/athletes/:id/injury', async (req, res) => {
     const result = await pool.query(`
       INSERT INTO injury_record
         (athlete_id, injury_date, injury_type, severity, body_part, recovery_status, expected_return)
-      VALUES ($1, $2, $3, $4, $5, 'Active', $6)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `, [
       athleteId,
-      injury_date,
-      injury_type,
+      resolvedDate,
+      injury_type.trim(),
       severity,
-      body_part       || null,
-      expected_return || null,
+      body_part?.trim() || null,
+      resolvedStatus,
+      resolvedReturn,
     ]);
 
     const injury = result.rows[0];
 
     // Log the new injury so coaches are immediately aware
     console.log(
-      `🩺 INJURY LOGGED: ${athleteCheck.rows[0].first_name} ${athleteCheck.rows[0].last_name}` +
+      `🩺 INJURY LOGGED (${resolvedStatus}): ${athleteCheck.rows[0].first_name} ${athleteCheck.rows[0].last_name}` +
       ` — ${severity} ${injury_type}` +
       (body_part ? ` (${body_part})` : '') +
-      `. Readiness penalty: ${severity === 'Severe' ? '-40' : severity === 'Moderate' ? '-20' : '-10'} pts`
+      (resolvedStatus === 'Active' 
+        ? `. Readiness penalty: ${severity === 'Severe' ? '-40' : severity === 'Moderate' ? '-20' : '-10'} pts` 
+        : ' (Past record - 0 penalty)')
     );
 
     res.status(201).json(injury);

@@ -260,4 +260,30 @@ router.post('/', async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// DELETE /api/athletes/:id
+// Removes an athlete from the team / system.
+// Cascades across athlete_position, biometric_log, injury_record, etc.
+// ---------------------------------------------------------------------------
+router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const check = await pool.query('SELECT first_name, last_name FROM athlete WHERE athlete_id = $1', [id]);
+    if (check.rows.length === 0) {
+      return res.status(404).json({ error: `Athlete with ID ${id} not found.` });
+    }
+
+    const athleteName = `${check.rows[0].first_name} ${check.rows[0].last_name}`;
+
+    await pool.query('DELETE FROM athlete WHERE athlete_id = $1', [id]);
+
+    console.log(`🗑️ ATHLETE REMOVED: ${athleteName} (ID: ${id})`);
+    res.json({ message: `Athlete ${athleteName} removed successfully.`, athlete_id: id });
+  } catch (err) {
+    console.error(`DELETE /api/athletes/${id} error:`, err.message);
+    res.status(500).json({ error: 'Failed to delete athlete.', detail: err.message });
+  }
+});
+
 module.exports = router;

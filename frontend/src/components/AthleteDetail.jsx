@@ -14,7 +14,8 @@ import {
   Phone,
   CheckCircle2,
   Sparkles,
-  Info
+  Info,
+  Trash2
 } from 'lucide-react';
 import { ReadinessBadge, RiskBadge } from './Badges';
 import { BiometricTrendChart } from './BiometricTrendChart';
@@ -24,6 +25,7 @@ import { generateSportsScienceInsights } from '../services/aiIntelligence';
 export function AthleteDetail({ athlete, onClose, onRefresh }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'log_biometrics' | 'log_injury'
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [notification, setNotification] = useState(null);
 
   // Form states for quick logging
@@ -38,6 +40,7 @@ export function AthleteDetail({ athlete, onClose, onRefresh }) {
   });
 
   const [injuryForm, setInjuryForm] = useState({
+    injury_date: new Date().toISOString().split('T')[0],
     injury_type: 'Hamstring Strain',
     body_part: 'Right Thigh',
     severity: 'Moderate',
@@ -49,6 +52,24 @@ export function AthleteDetail({ athlete, onClose, onRefresh }) {
   const readiness = athlete.readiness?.readiness_score 
     ? parseFloat(athlete.readiness.readiness_score) 
     : 0;
+
+  const handleRemovePlayer = async () => {
+    const confirmName = prompt(
+      `Are you sure you want to remove ${athlete.full_name || athlete.athlete_name || 'this athlete'} from the squad?\n\nType "REMOVE" to confirm:`
+    );
+    if (confirmName !== 'REMOVE') return;
+
+    try {
+      setDeleting(true);
+      await api.deleteAthlete(athlete.athlete_id);
+      if (onRefresh) onRefresh();
+      onClose();
+    } catch (err) {
+      setNotification({ type: 'error', message: err.message || 'Failed to remove player.' });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const handleBiometricSubmit = async (e) => {
     e.preventDefault();
@@ -127,6 +148,15 @@ export function AthleteDetail({ athlete, onClose, onRefresh }) {
 
         <div className="detail-header-actions">
           <ReadinessBadge score={readiness} size="lg" showLabel />
+          <button
+            className="btn-remove-player"
+            onClick={handleRemovePlayer}
+            disabled={deleting}
+            title="Remove this athlete from the team"
+          >
+            <Trash2 size={15} />
+            <span>{deleting ? 'Removing...' : 'Remove Player'}</span>
+          </button>
           <button className="close-btn" onClick={onClose} aria-label="Close details">
             <X size={20} />
           </button>
@@ -381,53 +411,96 @@ export function AthleteDetail({ athlete, onClose, onRefresh }) {
       {/* Tab 3: Record Injury Form */}
       {activeTab === 'log_injury' && (
         <form className="modal-form" onSubmit={handleInjurySubmit}>
-          <div className="form-info-banner warning">
+          <div className={`form-info-banner ${injuryForm.status === 'Active' ? 'warning' : ''}`}>
             <ShieldAlert size={16} />
-            <span>Active injuries apply penalties (Minor: -10, Moderate: -20, Severe: -40) to the live AI readiness score.</span>
+            {injuryForm.status === 'Active' ? (
+              <span><strong>CURRENT ACTIVE INJURY:</strong> Applies immediate penalty ({injuryForm.severity === 'Severe' ? '-40' : injuryForm.severity === 'Moderate' ? '-20' : '-10'} pts) to the live AI readiness score until cleared.</span>
+            ) : (
+              <span><strong>HISTORICAL / CLEARED RECORD:</strong> Stored for medical history & recovery analytics. Does NOT deduct points from the current readiness score.</span>
+            )}
+          </div>
+
+          {/* Active vs Past Status Selector */}
+          <div className="injury-status-toggle-group">
+            <label className="toggle-label">Injury Classification:</label>
+            <div className="toggle-buttons">
+              <button
+                type="button"
+                className={`toggle-option ${injuryForm.status === 'Active' ? 'active-injury' : ''}`}
+                onClick={() => setInjuryForm({ ...injuryForm, status: 'Active' })}
+              >
+                🔴 Current Active Injury (Penalizes Live Score)
+              </button>
+              <button
+                type="button"
+                className={`toggle-option ${injuryForm.status === 'Cleared' ? 'past-injury' : ''}`}
+                onClick={() => setInjuryForm({ ...injuryForm, status: 'Cleared' })}
+              >
+                🟢 Past / Historical Injury (No Penalty)
+              </button>
+            </div>
           </div>
 
           <div className="form-grid-2">
             <div className="form-field">
+              <label>Injury Date</label>
+              <input
+                type="date"
+                value={injuryForm.injury_date || new Date().toISOString().split('T')[0]}
+                onChange={(e) => setInjuryForm({ ...injuryForm, injury_date: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="form-field">
               <label>Injury Type</label>
               <input
                 type="text"
+                placeholder="e.g. Hamstring Strain, Ankle Sprain"
                 value={injuryForm.injury_type}
                 onChange={(e) => setInjuryForm({ ...injuryForm, injury_type: e.target.value })}
                 required
               />
             </div>
+
             <div className="form-field">
               <label>Body Part</label>
               <input
                 type="text"
+                placeholder="e.g. Right Hamstring, Left Knee"
                 value={injuryForm.body_part}
                 onChange={(e) => setInjuryForm({ ...injuryForm, body_part: e.target.value })}
                 required
               />
             </div>
+
             <div className="form-field">
               <label>Severity Tier</label>
               <select
                 value={injuryForm.severity}
                 onChange={(e) => setInjuryForm({ ...injuryForm, severity: e.target.value })}
               >
-                <option value="Minor">Minor (-10 pts)</option>
-                <option value="Moderate">Moderate (-20 pts)</option>
-                <option value="Severe">Severe (-40 pts)</option>
+                <option value="Minor">Minor (-10 pts when active)</option>
+                <option value="Moderate">Moderate (-20 pts when active)</option>
+                <option value="Severe">Severe (-40 pts when active)</option>
               </select>
             </div>
+
             <div className="form-field">
               <label>Expected Recovery (Days)</label>
               <input
                 type="number"
+                min="1"
                 value={injuryForm.expected_recovery_days}
                 onChange={(e) => setInjuryForm({ ...injuryForm, expected_recovery_days: parseInt(e.target.value) })}
               />
             </div>
+
             <div className="form-field full-col">
               <label>Clinical Notes</label>
               <textarea
                 rows="3"
+                placeholder="Diagnostic notes, mechanism of injury, MRI findings..."
                 value={injuryForm.notes}
                 onChange={(e) => setInjuryForm({ ...injuryForm, notes: e.target.value })}
               />
@@ -436,8 +509,12 @@ export function AthleteDetail({ athlete, onClose, onRefresh }) {
 
           <div className="form-actions">
             <button type="button" className="btn-secondary" onClick={() => setActiveTab('overview')}>Cancel</button>
-            <button type="submit" className="btn-primary btn-danger" disabled={submitting}>
-              {submitting ? 'Recording...' : 'Record Injury & Apply Penalty'}
+            <button
+              type="submit"
+              className={`btn-primary ${injuryForm.status === 'Active' ? 'btn-danger' : ''}`}
+              disabled={submitting}
+            >
+              {submitting ? 'Recording...' : injuryForm.status === 'Active' ? 'Record Active Injury & Apply Penalty' : 'Save Past Medical Record'}
             </button>
           </div>
         </form>

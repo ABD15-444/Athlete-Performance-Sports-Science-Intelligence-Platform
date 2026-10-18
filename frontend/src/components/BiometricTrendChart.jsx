@@ -64,6 +64,13 @@ export function BiometricTrendChart({ logs }) {
               <strong>{data.heartRate} bpm</strong>
             </div>
           )}
+          {data.hydration !== null && (
+            <div className="tooltip-row">
+              <span className="dot dot-hydration" />
+              <span>Hydration:</span>
+              <strong>{data.hydration}%</strong>
+            </div>
+          )}
         </div>
       );
     }
@@ -75,7 +82,7 @@ export function BiometricTrendChart({ logs }) {
       <div className="chart-header-row">
         <div>
           <h4 className="chart-title">14-Day Biometric Physiology Trend</h4>
-          <p className="chart-subtitle">Sleep Score vs HRV (ms) vs Fatigue Index (×10 scaled)</p>
+          <p className="chart-subtitle">Sleep (%) • HRV (ms) • Fatigue (×10) • Resting HR (bpm) • Hydration (%)</p>
         </div>
       </div>
 
@@ -106,27 +113,45 @@ export function BiometricTrendChart({ logs }) {
               name="Sleep Quality (%)"
               dataKey="sleepScore"
               stroke="#a855f7"
-              strokeWidth={2.5}
-              dot={{ r: 3, fill: '#a855f7' }}
-              activeDot={{ r: 6 }}
+              strokeWidth={2}
+              dot={{ r: 2.5, fill: '#a855f7' }}
+              activeDot={{ r: 5 }}
             />
             <Line
               type="monotone"
               name="HRV (ms)"
               dataKey="hrv"
               stroke="#06b6d4"
-              strokeWidth={2.5}
-              dot={{ r: 3, fill: '#06b6d4' }}
-              activeDot={{ r: 6 }}
+              strokeWidth={2}
+              dot={{ r: 2.5, fill: '#06b6d4' }}
+              activeDot={{ r: 5 }}
             />
             <Line
               type="monotone"
-              name="Fatigue Index (×10)"
+              name="Fatigue (×10)"
               dataKey="fatigueScaled"
               stroke="#f59e0b"
-              strokeWidth={2}
+              strokeWidth={1.75}
               strokeDasharray="4 4"
-              dot={{ r: 2.5, fill: '#f59e0b' }}
+              dot={{ r: 2, fill: '#f59e0b' }}
+            />
+            <Line
+              type="monotone"
+              name="Resting HR (bpm)"
+              dataKey="heartRate"
+              stroke="#ef4444"
+              strokeWidth={2}
+              dot={{ r: 2.5, fill: '#ef4444' }}
+              activeDot={{ r: 5 }}
+            />
+            <Line
+              type="monotone"
+              name="Hydration (%)"
+              dataKey="hydration"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              dot={{ r: 2.5, fill: '#3b82f6' }}
+              activeDot={{ r: 5 }}
             />
           </LineChart>
         </ResponsiveContainer>

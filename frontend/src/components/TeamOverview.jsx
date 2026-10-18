@@ -96,14 +96,19 @@ export function TeamOverview({ overview, selectedTeam, onSelectTeam, teams }) {
         <div className="kpi-card">
           <div className="kpi-header">
             <span className="kpi-title">Squad Health Status</span>
-            <ShieldCheck size={16} className="text-emerald" />
+            <ShieldCheck size={16} className={totalActiveInjuries === 0 ? 'text-emerald' : 'text-amber'} />
           </div>
           <div className="kpi-body">
-            <span className="kpi-value text-emerald">
-              {totalActiveInjuries === 0 ? 'Full Ready' : 'Managed Load'}
+            <span 
+              className="kpi-value"
+              style={{ color: totalActiveInjuries === 0 ? 'var(--ready-high)' : totalActiveInjuries > 2 ? 'var(--ready-low)' : 'var(--ready-mid)' }}
+            >
+              {totalActiveInjuries === 0 ? 'Full Ready' : totalActiveInjuries > 2 ? 'Critical Alert' : 'Managed Load'}
             </span>
           </div>
-          <p className="kpi-footer-text">Real-time Biometrics Synchronized</p>
+          <p className="kpi-footer-text">
+            {totalActiveInjuries === 0 ? '100% of Squad Available' : `${totalActiveInjuries} Athlete(s) Restricted / In Rehab`}
+          </p>
         </div>
       </div>
     </div>

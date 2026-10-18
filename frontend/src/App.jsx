@@ -105,14 +105,28 @@ export function App() {
   };
 
   const handleRefreshData = async () => {
-    await loadInitialData();
-    if (selectedTeam) {
-      const ov = await api.getTeamOverview(selectedTeam);
-      setTeamOverview(ov);
-    }
-    if (selectedAthleteId) {
-      const fullProfile = await api.getAthleteById(selectedAthleteId);
-      setDetailedAthlete(fullProfile);
+    try {
+      const [teamsData, athletesData, coachesData] = await Promise.all([
+        api.getTeams(),
+        api.getAthletes(),
+        api.getCoaches(),
+      ]);
+
+      setTeams(teamsData);
+      setAthletes(athletesData);
+      setCoaches(coachesData);
+
+      const activeTeamId = selectedTeam || teamsData[0]?.team_id;
+      if (activeTeamId) {
+        const ov = await api.getTeamOverview(activeTeamId);
+        setTeamOverview(ov);
+      }
+      if (selectedAthleteId) {
+        const fullProfile = await api.getAthleteById(selectedAthleteId);
+        setDetailedAthlete(fullProfile);
+      }
+    } catch (err) {
+      console.error('Refresh error:', err);
     }
   };
 
