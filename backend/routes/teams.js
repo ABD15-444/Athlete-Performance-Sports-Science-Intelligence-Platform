@@ -45,6 +45,39 @@ router.get('/', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// POST /api/teams
+// Creates a new team and assigns an existing coach.
+// ---------------------------------------------------------------------------
+router.post('/', async (req, res) => {
+  const { team_name, sport_type, coach_id } = req.body;
+
+  if (!team_name || !sport_type || !coach_id) {
+    return res.status(400).json({
+      error: 'team_name, sport_type, and coach_id are required fields.',
+    });
+  }
+
+  try {
+    // Check that the coach exists
+    const coachCheck = await pool.query('SELECT coach_id FROM coach WHERE coach_id = $1', [coach_id]);
+    if (coachCheck.rows.length === 0) {
+      return res.status(404).json({ error: `Coach with ID ${coach_id} not found.` });
+    }
+
+    const result = await pool.query(`
+      INSERT INTO team (team_name, sport_type, coach_id)
+      VALUES ($1, $2, $3)
+      RETURNING team_id, team_name, sport_type, coach_id
+    `, [team_name.trim(), sport_type.trim(), coach_id]);
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('POST /api/teams error:', err.message);
+    res.status(500).json({ error: 'Failed to create team.' });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // GET /api/teams/:id/overview
 // Returns a full team dashboard summary:
 //   • Team metadata + coach

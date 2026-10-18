@@ -23,6 +23,7 @@ const teamRoutes      = require('./routes/teams');
 const sessionRoutes   = require('./routes/sessions');
 const injuryRoutes    = require('./routes/injuries');
 const biometricRoutes = require('./routes/biometrics');
+const coachRoutes     = require('./routes/coaches');
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -75,6 +76,9 @@ app.use('/api/athletes/:id/biometrics', biometricRoutes);
 
 // Team routes
 app.use('/api/teams', teamRoutes);
+
+// Coach routes
+app.use('/api/coaches', coachRoutes);
 
 // Training sessions
 app.use('/api/sessions', sessionRoutes);

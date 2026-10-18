@@ -4,9 +4,20 @@ import { Users, AlertTriangle, ShieldCheck, TrendingUp, Trophy } from 'lucide-re
 export function TeamOverview({ overview, selectedTeam, onSelectTeam, teams }) {
   if (!overview) return null;
 
-  const avgReadiness = overview.roster_summary?.avg_readiness 
-    ? parseFloat(overview.roster_summary.avg_readiness) 
-    : 0;
+  // Handle both flat structure returned by backend and any nested fallback
+  const avgReadiness = overview.avg_readiness !== undefined && overview.avg_readiness !== null
+    ? parseFloat(overview.avg_readiness)
+    : (overview.roster_summary?.avg_readiness ? parseFloat(overview.roster_summary.avg_readiness) : 0);
+
+  const totalAthletes = overview.athlete_count !== undefined 
+    ? overview.athlete_count 
+    : (overview.roster_summary?.total_athletes || 0);
+
+  const totalActiveInjuries = overview.total_active_injuries !== undefined
+    ? overview.total_active_injuries
+    : (overview.roster_summary?.total_active_injuries || 0);
+
+  const coachName = overview.coach_name || overview.coach?.name || 'Assigned Staff';
 
   let readinessTierColor = 'var(--ready-high)';
   if (avgReadiness < 50) readinessTierColor = 'var(--ready-low)';
@@ -60,10 +71,10 @@ export function TeamOverview({ overview, selectedTeam, onSelectTeam, teams }) {
             <Users size={16} className="text-blue" />
           </div>
           <div className="kpi-body">
-            <span className="kpi-value">{overview.roster_summary?.total_athletes || 0}</span>
+            <span className="kpi-value">{totalAthletes}</span>
             <span className="kpi-sub">Athletes Tracked</span>
           </div>
-          <p className="kpi-footer-text">Head Coach: {overview.coach?.name || 'Assigned Staff'}</p>
+          <p className="kpi-footer-text">Head Coach: {coachName}</p>
         </div>
 
         <div className="kpi-card">
@@ -72,11 +83,11 @@ export function TeamOverview({ overview, selectedTeam, onSelectTeam, teams }) {
             <AlertTriangle size={16} className="text-amber" />
           </div>
           <div className="kpi-body">
-            <span className="kpi-value text-amber">{overview.roster_summary?.total_active_injuries || 0}</span>
+            <span className="kpi-value text-amber">{totalActiveInjuries}</span>
             <span className="kpi-sub">Penalized Athletes</span>
           </div>
           <p className="kpi-footer-text">
-            {overview.roster_summary?.total_active_injuries > 0 
+            {totalActiveInjuries > 0 
               ? 'Readiness scores penalized via DB View' 
               : '100% Roster Healthy'}
           </p>
@@ -89,7 +100,7 @@ export function TeamOverview({ overview, selectedTeam, onSelectTeam, teams }) {
           </div>
           <div className="kpi-body">
             <span className="kpi-value text-emerald">
-              {overview.roster_summary?.total_active_injuries === 0 ? 'Full Ready' : 'Managed Load'}
+              {totalActiveInjuries === 0 ? 'Full Ready' : 'Managed Load'}
             </span>
           </div>
           <p className="kpi-footer-text">Real-time Biometrics Synchronized</p>

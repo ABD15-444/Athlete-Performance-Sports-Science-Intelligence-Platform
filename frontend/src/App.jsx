@@ -5,11 +5,17 @@ import { AthleteDetail } from './components/AthleteDetail';
 import { TeamOverview } from './components/TeamOverview';
 import { TeamReadinessBarChart } from './components/TeamReadinessBarChart';
 import { AddAthleteModal } from './components/AddAthleteModal';
+import { AddCoachModal } from './components/AddCoachModal';
+import { AddTeamModal } from './components/AddTeamModal';
+import { TeamsDirectoryModal } from './components/TeamsDirectoryModal';
 import {
   Activity,
   AlertTriangle,
   RefreshCw,
   UserPlus,
+  UserCheck,
+  Trophy,
+  Users,
   Search,
   Filter,
   ShieldAlert,
@@ -19,6 +25,7 @@ import './App.css';
 
 export function App() {
   const [teams, setTeams] = useState([]);
+  const [coaches, setCoaches] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [teamOverview, setTeamOverview] = useState(null);
   const [athletes, setAthletes] = useState([]);
@@ -29,24 +36,29 @@ export function App() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Filters
+  // Filters & Modals
   const [searchQuery, setSearchQuery] = useState('');
   const [riskFilter, setRiskFilter] = useState('All');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAddAthleteModalOpen, setIsAddAthleteModalOpen] = useState(false);
+  const [isAddCoachModalOpen, setIsAddCoachModalOpen] = useState(false);
+  const [isAddTeamModalOpen, setIsAddTeamModalOpen] = useState(false);
+  const [isTeamsDirectoryOpen, setIsTeamsDirectoryOpen] = useState(false);
 
-  // 1. Initial Load: Fetch teams and athletes
+  // 1. Initial Load: Fetch teams, coaches, and athletes
   const loadInitialData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [teamsData, athletesData] = await Promise.all([
+      const [teamsData, athletesData, coachesData] = await Promise.all([
         api.getTeams(),
         api.getAthletes(),
+        api.getCoaches(),
       ]);
 
       setTeams(teamsData);
       setAthletes(athletesData);
+      setCoaches(coachesData);
 
       if (teamsData.length > 0 && !selectedTeam) {
         setSelectedTeam(teamsData[0].team_id);
@@ -146,12 +158,24 @@ export function App() {
             <span>PostgreSQL 18 Live</span>
           </div>
 
-          <button className="btn-secondary" onClick={handleRefreshData} title="Refresh Live Data">
-            <RefreshCw size={14} /> Refresh
+          <button className="btn-secondary" onClick={() => setIsTeamsDirectoryOpen(true)} title="View all squads, coaches & athletes">
+            <Trophy size={14} className="text-cyan" /> Teams Directory
           </button>
 
-          <button className="btn-primary" onClick={() => setIsAddModalOpen(true)}>
-            <UserPlus size={15} /> Add Athlete
+          <button className="btn-secondary" onClick={() => setIsAddCoachModalOpen(true)} title="Register a new coach">
+            <UserCheck size={14} className="text-cyan" /> + Coach
+          </button>
+
+          <button className="btn-secondary" onClick={() => setIsAddTeamModalOpen(true)} title="Create a new squad and assign a coach">
+            <Users size={14} className="text-cyan" /> + Team
+          </button>
+
+          <button className="btn-primary" onClick={() => setIsAddAthleteModalOpen(true)} title="Register a new athlete with position and contacts">
+            <UserPlus size={15} /> + Athlete
+          </button>
+
+          <button className="btn-secondary" onClick={handleRefreshData} title="Refresh Live Data">
+            <RefreshCw size={14} /> Refresh
           </button>
         </div>
       </header>
@@ -251,11 +275,36 @@ export function App() {
       )}
 
       {/* Add Athlete Modal */}
-      {isAddModalOpen && (
+      {isAddAthleteModalOpen && (
         <AddAthleteModal
           teams={teams}
-          onClose={() => setIsAddModalOpen(false)}
+          onClose={() => setIsAddAthleteModalOpen(false)}
           onCreated={handleRefreshData}
+        />
+      )}
+
+      {/* Add Coach Modal */}
+      {isAddCoachModalOpen && (
+        <AddCoachModal
+          onClose={() => setIsAddCoachModalOpen(false)}
+          onCreated={handleRefreshData}
+        />
+      )}
+
+      {/* Add Team Modal */}
+      {isAddTeamModalOpen && (
+        <AddTeamModal
+          coaches={coaches}
+          onClose={() => setIsAddTeamModalOpen(false)}
+          onCreated={handleRefreshData}
+        />
+      )}
+
+      {/* Teams Directory Modal */}
+      {isTeamsDirectoryOpen && (
+        <TeamsDirectoryModal
+          onClose={() => setIsTeamsDirectoryOpen(false)}
+          onSelectAthlete={handleSelectAthlete}
         />
       )}
     </div>

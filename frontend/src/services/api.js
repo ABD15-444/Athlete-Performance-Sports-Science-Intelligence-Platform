@@ -56,6 +56,19 @@ export const api = {
   // Teams
   getTeams: () => fetchJson('/api/teams'),
   getTeamOverview: (teamId) => fetchJson(`/api/teams/${teamId}/overview`),
+  createTeam: (teamData) =>
+    fetchJson('/api/teams', {
+      method: 'POST',
+      body: JSON.stringify(teamData),
+    }),
+
+  // Coaches
+  getCoaches: () => fetchJson('/api/coaches'),
+  createCoach: (coachData) =>
+    fetchJson('/api/coaches', {
+      method: 'POST',
+      body: JSON.stringify(coachData),
+    }),
 
   // Sessions
   getSessions: (limit = 20) => fetchJson(`/api/sessions?limit=${limit}`),
