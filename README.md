@@ -98,6 +98,7 @@ The database schema comprises **10 normalized tables**:
 ### Prerequisites
 * PostgreSQL 18+
 * Node.js v18+ & npm
+* Python 3.10+ (with `psycopg2-binary`)
 
 ### 1. Database Setup
 ```bash
@@ -111,6 +112,8 @@ psql -U postgres -c "CREATE DATABASE athlete_platform;"
 psql -U postgres -d athlete_platform -f database/schema.sql
 psql -U postgres -d athlete_platform -f database/views.sql
 psql -U postgres -d athlete_platform -f database/seed.sql
+psql -U postgres -d athlete_platform -f database/expanded_seed.sql
+psql -U postgres -d athlete_platform -f database/advanced_programmability.sql
 ```
 
 ### 2. Backend API Setup
@@ -131,31 +134,72 @@ npm run dev
 # Dashboard available on http://localhost:3000
 ```
 
+### 4. Python Database Connectivity Client
+```bash
+# Direct Python connectivity testing
+python3 python_client/athlete_db_client.py
+```
+
 ---
 
-## 🧪 Comprehensive API Documentation
+## ⚙️ Advanced Database Programmability (PL/pgSQL)
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/health` | Health check & DB connection pool ping |
-| `GET` | `/api/athletes` | Live roster with dynamically computed readiness & risk flags |
-| `GET` | `/api/athletes/:id` | Full composite athlete profile (bio, sessions, injuries, contacts) |
-| `POST` | `/api/athletes` | Register a new athlete with position & emergency contact |
-| `POST` | `/api/athletes/:id/biometrics` | Log daily wearable telemetry; flags acute overtraining |
-| `GET` | `/api/teams` | List all teams and sport types |
-| `GET` | `/api/teams/:id/overview` | Aggregated roster metrics (average readiness, injury counts) |
-| `GET` | `/api/sessions` | Fetch scheduled training sessions |
-| `POST` | `/api/sessions` | Create a training session |
-| `POST` | `/api/sessions/:id/athletes` | Log athlete participation & RPE |
-| `GET` | `/api/injuries` | List injuries filtered by status and severity |
-| `POST` | `/api/athletes/:id/injury` | Record injury (triggers automatic database readiness penalty) |
-| `PATCH` | `/api/injuries/:id/status` | Update injury status (`Cleared` removes penalty instantly) |
+Located in [`database/advanced_programmability.sql`](file:///Users/abrahamdavid/.gemini/antigravity-ide/scratch/athlete-platform/database/advanced_programmability.sql):
+
+### 1. Functions (2)
+* **`fn_calculate_readiness_score(sleep, hrv, fatigue, hydration, penalty)`**: Computes the sports science readiness score clamped to $[0, 100]$.
+* **`fn_get_athlete_injury_risk(fatigue, sleep)`**: Categorizes acute injury risk into `'High'`, `'Moderate'`, or `'Low'`.
+
+### 2. Procedures (2)
+* **`sp_log_training_session_with_attendance(session_id, date, type, duration, intensity, athlete_ids[], default_rpe)`**: Atomically logs a training session and populates athlete attendance with transaction control.
+* **`sp_clear_athlete_injuries(athlete_id, cleared_date)`**: Bulk-updates active injuries to `'Cleared'`, dynamically lifting readiness penalties.
+
+### 3. Cursor (1)
+* **`fn_scan_high_risk_athletes_cursor()`**: Uses an explicit PL/pgSQL `CURSOR` (`cur_athletes CURSOR FOR SELECT ...`) to iterate across the athlete population, evaluate latest biometrics, and return high-risk cases needing intervention.
+
+### 4. Triggers (2)
+* **`trg_biometric_overtraining` (on `Biometric_Log`)**: Intercepts inserts; if fatigue $>7$ or sleep $<40\%$, automatically creates an audit record in `Biometric_Alert_Audit`.
+* **`trg_injury_status_audit` (on `Injury_Record`)**: Intercepts `Recovery_Status` updates (`Active` $\rightarrow$ `Cleared`) and logs status transitions for sports medicine accountability.
+
+---
+
+## 📊 Meaningful Analytical SQL Queries (15 Suite)
+
+Located in [`database/meaningful_queries.sql`](file:///Users/abrahamdavid/.gemini/antigravity-ide/scratch/athlete-platform/database/meaningful_queries.sql):
+1. **Squad Physiological Overview**: Multi-table join with roster aggregates (HRV, Sleep, Resting HR).
+2. **Readiness Leaderboard**: Dynamic classification of recovery tiers across all athletes.
+3. **Window Function Rank**: `DENSE_RANK() OVER (PARTITION BY Team_Name)` and squad variance.
+4. **7-Day Rolling Moving Average**: `AVG(...) OVER (ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)` for HRV and sleep.
+5. **High Exertion Filter**: `HAVING COUNT(...) >= 3 AND AVG(RPE) >= 7.0`.
+6. **Correlated Subquery Peak Speeds**: Identifies velocity leaders per drill type.
+7. **Active Injury Burden**: Computes penalty point deductions and pre-injury baseline scores.
+8. **Acute Fatigue Surge Detector**: CTE comparing today's fatigue against 7-day baseline to detect spikes $>1.5$.
+9. **Position-Wise Benchmarks**: Compares VO2 Max and HRV across positions (`Forward`, `Guard`, `Sprinter`).
+10. **Training Volume Load**: Aggregates cumulative minutes and attendance by session type.
+11. **Emergency Contact Roster**: Medical preparedness join for high-risk/injured athletes.
+12. **Historical Recovery Duration**: Analyzes average days to recovery per injury type.
+13. **Sleep Duration vs Fatigue**: Groups sleep into categories to correlate against neuromuscular fatigue.
+14. **Coaches Managing Critical Athletes**: Identifies coaches whose squads have athletes below readiness threshold.
+15. **Cross-Drill Telemetry Averages**: Evaluates speed, acceleration, and distance across drill variations.
+
+---
+
+## 🐍 Python Database Connectivity
+
+Located in [`python_client/athlete_db_client.py`](file:///Users/abrahamdavid/.gemini/antigravity-ide/scratch/athlete-platform/python_client/athlete_db_client.py):
+* Direct PostgreSQL connectivity using `psycopg2`
+* Executes queries against the live view `Athlete_Readiness`
+* Invokes stored procedure `sp_clear_athlete_injuries`
+* Consumes cursor function `fn_scan_high_risk_athletes_cursor`
 
 ---
 
 ## 🎯 Verification Matrix
 
-* ✅ **Database Engine**: All 10 tables created with foreign key integrity, check constraints, and indexed `LATERAL` joins.
-* ✅ **Dynamic Recalculation**: Clearing an injury (`Elena Petrov`) instantly restored readiness score from `64.30` to `74.30`.
-* ✅ **Overtraining Alerts**: High fatigue ($>7$) and low sleep ($<40\%$) trigger automatic alerts.
-* ✅ **Production UI**: Dark sports-tech theme with Recharts 14-day trends, squad comparison bars, and live injury clearance controls.
+* ✅ **10+ Records per Table**: All 10 tables contain $\ge 10$ meaningful records (seed + expanded seed).
+* ✅ **15 Meaningful SQL Queries**: Tested and validated on live PostgreSQL 18 instance.
+* ✅ **2 Functions & 2 Procedures**: Compiles and executes cleanly in PL/pgSQL.
+* ✅ **1 Explicit Cursor**: Implemented in `fn_scan_high_risk_athletes_cursor()`.
+* ✅ **2 Event Triggers**: Auditing overtraining alerts and medical recovery status transitions.
+* ✅ **Python Connectivity**: Verified end-to-end with `psycopg2`.
+* ✅ **Full-Stack Application**: Node.js/Express API + React 19 / Recharts dashboard.
